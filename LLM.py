@@ -19,6 +19,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class LLM:
     def __init__(self, model_id=LLM_MODEL, device=DEVICE):
+        print(f"Loading LLM model: {model_id} on device: {device}")
         self.tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=True)
         self.model = AutoModelForCausalLM.from_pretrained(model_id)
         self.model.to(device)
@@ -33,9 +34,11 @@ class LLM:
     def classify(self, frame, previous_output=None):
 
         image_description = ""
-        emotions = self.emotionRecognition_model.detect(frame)
+        print("Starting Emotions classification...")
+        _, emotions = self.emotionRecognition_model.detect(frame)
         print("Emotions detected:", emotions)
         # cv2_frame = None
+        print("Starting Object detection...")
         objects = self.objectDetection_model.detect(frame)
         print("Objects detected:", objects)
 
@@ -142,7 +145,7 @@ def main():
         elif key % 256 == 32:  # SPACE pressed
             image = frame.copy()
 
-            classification = llm.classify(frame=None)
+            classification = llm.classify(image)
 
             print("Classification:", classification)
             # Optionally, show detections on the image

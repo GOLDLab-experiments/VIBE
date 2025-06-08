@@ -59,9 +59,11 @@ class EmotionPipeline:
 # --- EmotionRecognizer ---
 class EmotionRecognizer:
     def __init__(self, env_path='.env.emotion'):
+        print("Initializing EmotionRecognizer...")
         load_dotenv(env_path)
         em_path = os.environ["EM_MODEL_PATH"]
 
+        print(f"Using emotion model path: {em_path}")
         if not os.path.exists(em_path):
             print(f"Model file not found at {em_path}. Downloading models...")
             script_path = os.path.join(os.path.dirname(__file__), "download_models.py")
@@ -83,7 +85,6 @@ class EmotionRecognizer:
             (self.emotions_array[index], round(prob[0][0], 3))
             for index, prob in enumerate(emotion_prob)
         ]
-        print(f"Detections: {detections}")
         # Optionally draw label:
         # if results.emotion:
         #     label = f"{results.emotion}"

@@ -6,6 +6,7 @@ class ObjectDetector:
         """
         Initializes the ObjectDetector with the YOLO model.
         """
+        print("Initializing ObjectDetector...")
         print(f"Loading model {model_name}...")
         self.model_name = model_name
         self.model = YOLO(self.model_name)
