@@ -33,14 +33,34 @@ class LLM:
 
     def classify(self, frame, previous_output=None):
 
-        image_description = ""
-        print("Starting Emotions classification...")
-        _, emotions = self.emotionRecognition_model.detect(frame)
-        print("Emotions detected:", emotions)
+        object_description = ""
+
         # cv2_frame = None
         print("Starting Object detection...")
         objects = self.objectDetection_model.detect(frame)
         print("Objects detected:", objects)
+
+        for obj, probability in objects:
+            object_description += f"{obj} with probability {round(probability,3)}, "
+
+
+        emotions_description = ""
+
+        print("\nStarting Emotions classification...")
+        _, emotions = self.emotionRecognition_model.detect(frame)
+
+        for emotion, probability in emotions:
+            prob = round(probability, 3)
+            print(f"Emotion: {emotion}")
+            emotions_description += f"{emotion} with probability {prob}, "
+
+        print("Object description:", object_description)
+        print("Emotions description:", emotions_description)
+
+        # Round all probabilities in the emotions list
+        rounded_emotions = [(emotion, round(probability, 3)) for emotion, probability in emotions]
+        
+        print("Rounded emotions:", rounded_emotions)
 
         messages = [
             {
@@ -48,15 +68,17 @@ class LLM:
                 "content": (
                     "You are an AI model that classifies scenes based on detected objects and human emotions. "
                     "Given the following arrays of detected objects and emotions (each with probabilities), "
-                    "classify the scene into one of these categories: 1. Benign, 2. Malicious, 3. Authorized."
+                    "classify the scene into one of these categories: Benign, Malicious, Authorized. "
+                    "Respond with ONLY the category name, and nothing else. Do not explain your answer."
+
                 )
             },
             {
                 "role": "user",
                 "content": (
-                    f"Detected objects (with probabilities): {objects}\n"
-                    f"Detected emotions (with probabilities): {emotions}\n"
-                    "Based on the above, output only one word: Benign, Malicious, or Authorized. Classification:"
+                    f"Detected objects (with probabilities): {object_description}\n"
+                    f"Detected emotions (with probabilities): {emotions_description}\n"
+                    "What is the category? give me your reasoning <reasoning:> (Respond with only one word: Benign, Malicious, or Authorized)"
                 )
             }
         ]
@@ -67,7 +89,7 @@ class LLM:
                 "content": f"Previous classification: {previous_output}"
             })
 
-        print("Messages:", messages)
+        print("\nMessages:", messages)
 
         # If your tokenizer supports chat templates, use it; otherwise, flatten messages to a prompt
         # if hasattr(self.tokenizer, "apply_chat_template"):
@@ -78,18 +100,17 @@ class LLM:
         #     # Fallback: simple concatenation
         prompt = "\n".join([msg["content"] for msg in messages])
 
-        print("Prompt:\n", prompt)
-        print(f"prompt type: {type(prompt)}")
+        print("\nPrompt:\n", prompt)
 
         inputs = self.tokenizer(prompt, return_tensors='pt')
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
-        print("Inputs processed and moved to", self.device, "for LLM.")
+        print("\nInputs processed and moved to", self.device, "for LLM.")
         generated_ids = self.model.generate(
             **inputs,
-            max_new_tokens=10,
+            max_new_tokens=5,
             num_beams=1,
             do_sample=False,
-            pad_token_id=self.tokenizer.pad_token_id
+            pad_token_id=self.tokenizer.eos_token_id,
         )
         generated_texts = self.tokenizer.batch_decode(
             generated_ids,
@@ -98,13 +119,20 @@ class LLM:
         output = generated_texts[0].strip()
 
         # output = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
-        print("LLM Output:\n", output)
+        print("\nLLM Output:\n", output)
         # Extract classification
-        predicted_class = "uncertain"
+        # predicted_class = "uncertain"
 
-        predicted_class = output.partition("Classification:")[2].lstrip()
+        # Only keep the first valid category word
+        for word in output.split():
+            if word.capitalize() in ["Benign", "Malicious", "Authorized"]:
+                predicted_class = word.capitalize()
+                break
+        else:
+            predicted_class = "uncertain"
+        # predicted_class = output.partition("Classification:")[2].lstrip()
 
-        print(f"Classification Result: {predicted_class[:-1]}")
+        print(f"\nClassification Result: {predicted_class}")
         return predicted_class
 
 
