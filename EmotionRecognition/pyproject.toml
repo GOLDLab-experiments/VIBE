@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gaze-estimation"
+version = "0.1.0"
+description = "python emotions detections"
+authors = [
+    { name="Gali&Arbel" }
+]
+dependencies = [
+    "opencv-python",
+    "openvino-dev",
+    "python-dotenv"
+]
+
+[tool.setuptools]
+packages = ["gaze_estimation"]
