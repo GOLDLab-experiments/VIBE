@@ -1,21 +1,19 @@
 
 import cv2
 import torch
-from PIL import Image
-from transformers import AutoProcessor, AutoModelForVision2Seq
+import re
 from transformers import AutoProcessor, AutoModelForCausalLM, AutoTokenizer
-from time import time
 
 from EmotionRecognition.EmotionRecognizer import EmotionRecognizer
 from ObjectDetection.ObjectDetector import ObjectDetector
 
 print("Loading model...")
 
-# PALIGEMMA = 'google/paligemma-3b-ft-textcaps-448'
-LLM_MODEL = 'meta-llama/Llama-3.2-1B-Instruct'
+# LLM_MODEL = 'meta-llama/Llama-3.2-1B-Instruct'
 # LLM_MODEL = "facebook/opt-125m"
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+LLM_MODEL = "Qwen/Qwen3-0.6B"
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class LLM:
     def __init__(self, model_id=LLM_MODEL, device=DEVICE):
@@ -33,52 +31,88 @@ class LLM:
 
     def classify(self, frame, previous_output=None):
 
-        object_description = ""
-
-        # cv2_frame = None
+        # Object detection
         print("Starting Object detection...")
         objects = self.objectDetection_model.detect(frame)
         print("Objects detected:", objects)
+        object_description = ", ".join(
+            f"{obj} with probability {round(prob, 3)}" for obj, prob in objects
+        )
 
-        for obj, probability in objects:
-            object_description += f"{obj} with probability {round(probability,3)}, "
-
-
-        emotions_description = ""
-
+        # Emotion recognition
         print("\nStarting Emotions classification...")
         _, emotions = self.emotionRecognition_model.detect(frame)
-
-        for emotion, probability in emotions:
-            prob = round(probability, 3)
-            print(f"Emotion: {emotion}")
-            emotions_description += f"{emotion} with probability {prob}, "
-
-        print("Object description:", object_description)
-        print("Emotions description:", emotions_description)
-
-        # Round all probabilities in the emotions list
-        rounded_emotions = [(emotion, round(probability, 3)) for emotion, probability in emotions]
-        
-        print("Rounded emotions:", rounded_emotions)
+        print("Emotions detected:", emotions)
+        emotions_description = ", ".join(
+            f"{emotion} with probability {prob}" for (emotion, prob) in emotions
+        )
 
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are an AI model that classifies scenes based on detected objects and human emotions. "
-                    "Given the following arrays of detected objects and emotions (each with probabilities), "
+                    "You are an assistant that classifies scenes based on detected objects and human emotions. "
+                    "Given the detected objects and emotions - each with probabilities, "
                     "classify the scene into one of these categories: Benign, Malicious, Authorized. "
-                    "Respond with ONLY the category name, and nothing else. Do not explain your answer."
-
+                    "The default classification should be Benign unless the objects or emotions suggest otherwise. "
+                    "If the objects are common and non-threatening, classify as Benign. "
+                    "First, output your reasoning inside <Reasoning> tags, e.g. <Reasoning> ... </Reasoning>. "
+                    "Then, on a new line, output ONLY the category name (Benign, Malicious, or Authorized)."
+                )
+            },
+            # FEW-SHOT EXAMPLES
+            {
+                "role": "user",
+                "content": (
+                    "Detected objects: Man with probability 0.603, Human face with probability 0.355, Clothing with probability 0.301, Drink with probability 0.221, \n"
+                    "Detected emotions: happy with probability 0.52, neutral with probability 0.41, \n"
+                    "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line.\n"
+                )
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "<Reasoning> The detected emotion is happy and neutral, and the objects are common and non-threatening. This suggests a safe and non-threatening situation. </Reasoning>\n"
+                    "Benign\n"
                 )
             },
             {
                 "role": "user",
                 "content": (
-                    f"Detected objects (with probabilities): {object_description}\n"
-                    f"Detected emotions (with probabilities): {emotions_description}\n"
-                    "What is the category? give me your reasoning <reasoning:> (Respond with only one word: Benign, Malicious, or Authorized)"
+                    "Detected objects: Pen with probability 0.382, Suit with probability 0.219, \n"
+                    "Detected emotions: neutral with probability 0.60, \n"
+                    "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line.\n"
+                )
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "<Reasoning> The detected objects are office tools, which are typically found in authorized environments like hospitals. The emotion is neutral, which is not concerning. </Reasoning>\n"
+                    "Authorized\n"
+                )
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Detected objects: Knife with probability 0.61, Scissors with probability 0.205, \n"
+                    "Detected emotions: angry with probability 0.691, neutral with probability 0.144, happy with probability 0.105, surprized with probability 0.037, sad with probability 0.023 \n"
+                    "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line.\n"
+                )
+            },
+            {
+                "role": "assistant",
+                "content": (
+                    "<Reasoning> The presence of a knife and scissors and an angry emotion suggests a potentially dangerous and malicious situation. </Reasoning>\n"
+                    "Malicious\n"
+                )
+            },
+            # END FEW-SHOT EXAMPLES
+            {
+                "role": "user",
+                "content": (
+                    f"Detected objects: {object_description}\n"
+                    f"Detected emotions: {emotions_description}\n"
+                    "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line."
                 )
             }
         ]
@@ -89,16 +123,15 @@ class LLM:
                 "content": f"Previous classification: {previous_output}"
             })
 
-        print("\nMessages:", messages)
-
-        # If your tokenizer supports chat templates, use it; otherwise, flatten messages to a prompt
-        # if hasattr(self.tokenizer, "apply_chat_template"):
-        #     print("In if has attribute")
-        #     prompt = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-        # else:
-        #     print("In else has attribute")
-        #     # Fallback: simple concatenation
-        prompt = "\n".join([msg["content"] for msg in messages])
+        try:
+            prompt = self.tokenizer.apply_chat_template(
+                messages, 
+                add_generation_prompt=True,
+                tokenize=False,
+                enable_thinking=False
+            )
+        except Exception:
+            prompt = "\n".join([msg["content"] for msg in messages])
 
         print("\nPrompt:\n", prompt)
 
@@ -107,7 +140,7 @@ class LLM:
         print("\nInputs processed and moved to", self.device, "for LLM.")
         generated_ids = self.model.generate(
             **inputs,
-            max_new_tokens=5,
+            max_new_tokens=1024,
             num_beams=1,
             do_sample=False,
             pad_token_id=self.tokenizer.eos_token_id,
@@ -118,33 +151,41 @@ class LLM:
         )
         output = generated_texts[0].strip()
 
-        # output = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
         print("\nLLM Output:\n", output)
-        # Extract classification
-        # predicted_class = "uncertain"
 
-        # Only keep the first valid category word
-        for word in output.split():
-            if word.capitalize() in ["Benign", "Malicious", "Authorized"]:
-                predicted_class = word.capitalize()
-                break
+         # Extract reasoning using startswith/endswith and get the last one
+        reasoning = "Not detected"
+
+        lines = output.splitlines()
+        last_reasoning_idx = -1
+        for idx, line in enumerate(lines):
+            line = line.strip()
+            if line.startswith("<Reasoning>") and line.endswith("</Reasoning>"):
+                reasoning = line[len("<Reasoning>"):-len("</Reasoning>")].strip()
+                last_reasoning_idx = idx
+
+        print("\nExtracted Reasoning:\n", reasoning)
+
+        # Find the first valid category after the last </Reasoning>
+        predicted_class = "uncertain"
+        if last_reasoning_idx != -1:
+            search_lines = lines[last_reasoning_idx+1:]
         else:
-            predicted_class = "uncertain"
-        # predicted_class = output.partition("Classification:")[2].lstrip()
+            search_lines = lines
+        for line in search_lines:
+            for word in line.split():
+                if word.capitalize() in {"Benign", "Malicious", "Authorized"}:
+                    predicted_class = word.capitalize()
+                    break
+            if predicted_class != "uncertain":
+                break
 
-        print(f"\nClassification Result: {predicted_class}")
-        return predicted_class
-
-
+        return predicted_class, reasoning
 
 def main():
 
-    # start = time()
-
     llm = LLM()
-    image_description = ""
 
-    
     # Use the LLM output as additional input to the LLM (demonstration)
     # refined_classification = llm.classify(image_description, previous_output=classification)
     # print(f"Refined Classification Result: {refined_classification}")
@@ -173,9 +214,12 @@ def main():
         elif key % 256 == 32:  # SPACE pressed
             image = frame.copy()
 
-            classification = llm.classify(image)
+            classification, reasoning = llm.classify(image)
 
-            print("Classification:", classification)
+            print("\nClassification:", classification)
+            print("\nReasoning:", reasoning)
+
+
             # Optionally, show detections on the image
             # for detection in detections:
             #     label, prob = detection
@@ -186,9 +230,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
-    
-    # end = time()
-    # print(f"Total time taken: {end - start:.2f} seconds")
+
     print("Processing complete.")
 
 if __name__ == "__main__":

@@ -82,13 +82,25 @@ class EmotionRecognizer:
         results = self.pipeline.process(frame)
         emotion_prob = results.emotion_scores
         detections = [
-            (self.emotions_array[index], round(prob[0][0], 3))
+            (self.emotions_array[index], round(float(prob[0][0]), 3))
             for index, prob in enumerate(emotion_prob)
         ]
+
+        detections = sorted(detections, key=lambda x: x[1], reverse=True)
+
+        detections_prob = [
+            (self.emotions_array[index], prob)
+            for index, prob in enumerate(emotion_prob)
+        ]
+
+        print("\ndetections_prob:\n", detections_prob)
+        print("\nEmotion probabilities:\n", detections)
+
         # Optionally draw label:
         # if results.emotion:
         #     label = f"{results.emotion}"
         #     cv2.putText(frame, label, (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
+
         return frame, detections
 
     def run(self):
