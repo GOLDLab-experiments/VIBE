@@ -59,8 +59,18 @@ class EmotionPipeline:
 # --- EmotionRecognizer ---
 class EmotionRecognizer:
     def __init__(self, env_path='.env.emotion'):
+
         print("Initializing EmotionRecognizer...")
         load_dotenv(env_path)
+    
+        fd_path = os.environ["FD_MODEL_PATH"]
+        self.face_core = Core()
+        self.face_model = self.face_core.read_model(model=fd_path)
+        self.face_compiled = self.face_core.compile_model(model=self.face_model, device_name='CPU')
+        self.face_input_layer = self.face_compiled.input(0)
+        self.face_output_layer = self.face_compiled.output(0)
+       
+
         em_path = os.environ["EM_MODEL_PATH"]
 
         print(f"Using emotion model path: {em_path}")
@@ -78,8 +88,40 @@ class EmotionRecognizer:
             raise ValueError(f"Invalid camera source: {cam_source}")
         self.emotions_array = ['neutral', 'happy', 'sad', 'surprise', 'anger']
 
+
+    def detect_faces(self, frame):
+        _, _, H, W = self.face_input_layer.shape
+        resized = cv2.resize(frame, (W, H))
+        blob = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        blob = blob.transpose(2, 0, 1)[np.newaxis, ...]
+        outputs = self.face_compiled([blob])[self.face_output_layer]
+        detections = outputs[0][0]
+        faces = []
+        for det in detections:
+            conf = det[2]
+            if conf > 0.5:
+                xmin = int(det[3] * frame.shape[1])
+                ymin = int(det[4] * frame.shape[0])
+                xmax = int(det[5] * frame.shape[1])
+                ymax = int(det[6] * frame.shape[0])
+                faces.append((xmin, ymin, xmax, ymax))
+        return faces
+
     def detect(self, frame):
-        results = self.pipeline.process(frame)
+        # results = self.pipeline.process(frame)
+        faces = self.detect_faces(frame)
+        cropped = False
+
+        if faces:
+            # Use the largest face (or first one)
+            xmin, ymin, xmax, ymax = max(faces, key=lambda box: (box[2]-box[0])*(box[3]-box[1]))
+            face_img = frame[ymin:ymax, xmin:xmax]
+            results = self.pipeline.process(face_img)
+            cropped = True
+
+        else:
+            results = self.pipeline.process(frame)
+        
         emotion_prob = results.emotion_scores
         detections = [
             (self.emotions_array[index], round(float(prob[0][0]), 3))
@@ -95,6 +137,12 @@ class EmotionRecognizer:
 
         print("\ndetections_prob:\n", detections_prob)
         print("\nEmotion probabilities:\n", detections)
+
+        if cropped:
+            print("The photo was cropped")
+            cv2.imshow("The photo was cropped", face_img)
+            cv2.waitKey(3000)
+            cv2.destroyWindow("The photo was cropped")
 
         # Optionally draw label:
         # if results.emotion:
