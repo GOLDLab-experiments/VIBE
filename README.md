@@ -54,5 +54,5 @@ A utility script to automatically download all required models for the Emotion R
 
 ## 👥 Authors
 
-- Gali Tal  
-- Arbel Tepper
+- [Gali Tal](https://github.com/galital5)
+- [Arbel Tepper](https://github.com/ArbelTepper)
