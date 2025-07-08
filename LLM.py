@@ -1,4 +1,3 @@
-
 import cv2
 import torch
 import re
@@ -6,6 +5,7 @@ from transformers import AutoProcessor, AutoModelForCausalLM, AutoTokenizer
 
 from EmotionRecognition.EmotionRecognizer import EmotionRecognizer
 from ObjectDetection.ObjectDetector import ObjectDetector
+from skeleton import SkeletonDetector
 
 print("Loading model...")
 
@@ -27,35 +27,38 @@ class LLM:
         #    self.tokenizer.pad_token = self.tokenizer.eos_token
         self.objectDetection_model = ObjectDetector()
         self.emotionRecognition_model = EmotionRecognizer()
+        self.skeletonDetector = SkeletonDetector()
 
 
     def classify(self, frame, previous_output=None):
-
         # Object detection
         print("Starting Object detection...")
         objects = self.objectDetection_model.detect(frame)
         print("Objects detected:", objects)
-        object_description = ", ".join(
-            f"{obj} with probability {round(prob, 3)}" for obj, prob in objects
-        )
+        object_description = ", ".join(f"{obj} with probability {round(prob, 3)}" for obj, prob in objects)
 
         # Emotion recognition
         print("\nStarting Emotions classification...")
         _, emotions = self.emotionRecognition_model.detect(frame)
         print("Emotions detected:", emotions)
-        emotions_description = ", ".join(
-            f"{emotion} with probability {prob}" for (emotion, prob) in emotions
-        )
+        emotions_description = emotions[0][0]
+
+        # Skeleton detection
+        print("\nStarting Skeleton detection...")
+        skeleton_landmarks = self.skeletonDetector.detect(frame)
+        if skeleton_landmarks is not None:
+            skeleton_description = ", ".join(f"{landmark} with probability {prob}" for (landmark, prob) in skeleton_landmarks)
 
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are an assistant that classifies scenes based on detected objects and human emotions. "
-                    "Given the detected objects and emotions - each with probabilities, "
+                    "You are an assistant that classifies scenes based on detected objects, human emotions, and skeleton findings. "
+                    "Given the detected objects, emotions, and skeleton findings - each with probabilities, "
                     "classify the scene into one of these categories: Benign, Malicious, Authorized. "
-                    "The default classification should be Benign unless the objects or emotions suggest otherwise. "
+                    "The default classification should be Benign unless the objects, emotions, or skeleton suggest otherwise. "
                     "If the objects are common and non-threatening, classify as Benign. "
+                    "If you detect objects or attire associated with work or safety environments (such as helmet, safety vest, uniform, badge, stethoscope, or other professional equipment), classify as Authorized. "
                     "First, output your reasoning inside <Reasoning> tags, e.g. <Reasoning> ... </Reasoning>. "
                     "Then, on a new line, output ONLY the category name (Benign, Malicious, or Authorized)."
                 )
@@ -65,29 +68,31 @@ class LLM:
                 "role": "user",
                 "content": (
                     "Detected objects: Man with probability 0.603, Human face with probability 0.355, Clothing with probability 0.301, Drink with probability 0.221, \n"
-                    "Detected emotions: happy with probability 0.52, neutral with probability 0.41, \n"
+                    "Detected emotions: happy \n"
+                    "Skeleton findings: left_shoulder with probability 0.92, right_shoulder with probability 0.91, nose with probability 0.95\n"
                     "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line.\n"
                 )
             },
             {
                 "role": "assistant",
                 "content": (
-                    "<Reasoning> The detected emotion is happy and neutral, and the objects are common and non-threatening. This suggests a safe and non-threatening situation. </Reasoning>\n"
+                    "<Reasoning> The detected emotion is happy, the objects are common and non-threatening, and the skeleton findings show a relaxed posture. This suggests a safe and non-threatening situation. </Reasoning>\n"
                     "Benign\n"
                 )
             },
             {
                 "role": "user",
                 "content": (
-                    "Detected objects: Pen with probability 0.382, Suit with probability 0.219, \n"
-                    "Detected emotions: neutral with probability 0.60, \n"
+                    "Detected objects: helmet with probability 0.819, \n"
+                    "Detected emotions: neutral \n"
+                    "Skeleton findings: left_shoulder with probability 0.89, right_shoulder with probability 0.88, left_hip with probability 0.87\n"
                     "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line.\n"
                 )
             },
             {
                 "role": "assistant",
                 "content": (
-                    "<Reasoning> The detected objects are office tools, which are typically found in authorized environments like hospitals. The emotion is neutral, which is not concerning. </Reasoning>\n"
+                    "<Reasoning> The presence of a helmet indicates a safety or work environment, meaning the person is Authoized. </Reasoning>\n"
                     "Authorized\n"
                 )
             },
@@ -95,14 +100,15 @@ class LLM:
                 "role": "user",
                 "content": (
                     "Detected objects: Knife with probability 0.61, Scissors with probability 0.205, \n"
-                    "Detected emotions: angry with probability 0.691, neutral with probability 0.144, happy with probability 0.105, surprized with probability 0.037, sad with probability 0.023 \n"
+                    "Detected emotions: angry \n"
+                    "Skeleton findings: left_wrist with probability 0.93, right_wrist with probability 0.92, left_elbow with probability 0.91\n"
                     "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line.\n"
                 )
             },
             {
                 "role": "assistant",
                 "content": (
-                    "<Reasoning> The presence of a knife and scissors and an angry emotion suggests a potentially dangerous and malicious situation. </Reasoning>\n"
+                    "<Reasoning> The presence of a knife and scissors and an angry emotion suggests a potentially dangerous and malicious situation. The skeleton findings may indicate raised arms, which could be threatening. </Reasoning>\n"
                     "Malicious\n"
                 )
             },
@@ -112,6 +118,7 @@ class LLM:
                 "content": (
                     f"Detected objects: {object_description}\n"
                     f"Detected emotions: {emotions_description}\n"
+                    f"Skeleton findings: {skeleton_description}\n"
                     "What is the category? Please provide your reasoning in <Reasoning> tags, then output only the category name on a new line."
                 )
             }
@@ -133,7 +140,7 @@ class LLM:
         except Exception:
             prompt = "\n".join([msg["content"] for msg in messages])
 
-        print("\nPrompt:\n", prompt)
+        # print("\nPrompt:\n", prompt)
 
         inputs = self.tokenizer(prompt, return_tensors='pt')
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
