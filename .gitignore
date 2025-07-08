@@ -2,3 +2,4 @@ login.py
 hf_token.py
 intel/
 EmotionRecognition/intel/
+__pycache__/
