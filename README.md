@@ -1,47 +1,58 @@
 # VIBE - Visual Intelligence-Based Engine
 
-## Overview
+## 🧠 Overview
 
-VIBE is a sophisticated scene analysis and classification engine. It processes visual data from a camera feed to understand the context of a scene. By leveraging a combination of state-of-the-art machine learning models, VIBE can identify objects, recognize human emotions, and analyze body posture to classify a scene as "Benign," "Malicious," or "Authorized."
+**VIBE** is a sophisticated scene analysis and classification engine that processes visual data from a camera feed to understand the context of a scene. By combining state-of-the-art machine learning models, VIBE can identify objects, recognize human emotions, and analyze body posture to classify scenes as **"Benign," "Malicious," or "Authorized."**
 
-This project is a component of a larger system which controlls the robot's movements. For more details and installation instructions, please visit: [Link to main project]
+This project is part of a larger system responsible for controlling a robot’s movements.  
+👉 For full system details and installation instructions, see: **[Link to main project]**
 
-## How It Works
+---
 
-The system operates in a pipeline:
+## ⚙️ How It Works
 
-1.  **Frame Capture**: An image frame is captured from a video stream.
-2.  **Parallel Processing**: The frame is simultaneously fed into three specialized modules:
-    *   Object Detection
-    *   Emotion Recognition
-    *   Skeleton Detection
-3.  **Data Aggregation**: The outputs from these modules—a list of detected objects, recognized emotions, and key skeletal landmarks—are collected.
-4.  **LLM-Based Analysis**: The aggregated data is formatted into a detailed prompt and sent to a Large Language Model (LLM).
-5.  **Scene Classification**: The LLM analyzes the prompt and provides a final classification for the scene, along with a justification for its decision.
+The system follows a structured pipeline:
 
-## Components
+1. **Frame Capture**  
+   A single image frame is captured from the video stream.
+
+2. **Parallel Processing**  
+   The frame is sent simultaneously to three specialized modules:  
+   - Object Detection  
+   - Emotion Recognition  
+   - Skeleton Detection  
+
+3. **Data Aggregation**  
+   Outputs from the modules—objects, emotions, and skeletal landmarks—are collected and combined.
+
+4. **LLM-Based Analysis**  
+   The combined data is formatted into a prompt and sent to a **Large Language Model (LLM)** for interpretation.
+
+5. **Scene Classification**  
+   The LLM analyzes the prompt and returns a final scene label along with a rationale.
+
+---
+
+## 🧩 Components
 
 ### 1. LLM Orchestrator (`LLM.py`)
-
-This is the central nervous system of VIBE. It orchestrates the other components and uses a powerful Large Language Model (`Qwen/Qwen3-0.6B`) to interpret the combined data. It uses few-shot prompting to guide the LLM into providing a consistent and accurate classification.
+The central controller of VIBE. It coordinates all other components and uses the `Qwen/Qwen3-0.6B` LLM for prompt-based scene classification. Few-shot prompting is used for consistency and accuracy.
 
 ### 2. Object Detection (`ObjectDetection/ObjectDetector.py`)
-
-This module uses a YOLO (You Only Look Once) model (`yolov8l-oiv7.pt`) to detect and identify various objects within the captured frame. The list of detected objects and their confidence scores are passed to the orchestrator.
+Uses a YOLOv8 model (`yolov8l-oiv7.pt`) to detect objects in the scene. It outputs object labels and confidence scores to the orchestrator.
 
 ### 3. Emotion Recognition (`EmotionRecognition/EmotionRecognizer.py`)
-
-This component utilizes the OpenVINO toolkit to perform high-speed emotion recognition. It identifies faces in the image and classifies their expressions into categories such as 'neutral', 'happy', 'sad', 'surprise', or 'anger'.
+Utilizes the OpenVINO toolkit for fast emotion recognition. It detects faces and classifies expressions into categories such as *neutral*, *happy*, *sad*, *surprised*, and *angry*.
 
 ### 4. Skeleton Detection (`skeleton.py`)
-
-Using the MediaPipe library, this module detects human poses by identifying key skeletal landmarks. This provides insights into body language and posture, which is a crucial element for contextual understanding.
+Employs the MediaPipe library to detect human poses by extracting key skeletal landmarks—crucial for interpreting posture and body language.
 
 ### 5. Model Downloader (`download_models.py`)
+A utility script to automatically download all required models for the Emotion Recognition module, simplifying setup.
 
-This utility script ensures that all the necessary models for the Emotion Recognition module are downloaded and available, making the setup process smoother.
+---
 
-## Authors
+## 👥 Authors
 
-*   Gali Tal
-*   Arbel Tepper
+- Gali Tal  
+- Arbel Tepper
