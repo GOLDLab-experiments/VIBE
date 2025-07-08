@@ -1,7 +1,6 @@
 import cv2
 import torch
-import re
-from transformers import AutoProcessor, AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from EmotionRecognition.EmotionRecognizer import EmotionRecognizer
 from ObjectDetection.ObjectDetector import ObjectDetector
@@ -9,8 +8,6 @@ from skeleton import SkeletonDetector
 
 print("Loading model...")
 
-# LLM_MODEL = 'meta-llama/Llama-3.2-1B-Instruct'
-# LLM_MODEL = "facebook/opt-125m"
 LLM_MODEL = "Qwen/Qwen3-0.6B"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -30,7 +27,7 @@ class LLM:
         self.skeletonDetector = SkeletonDetector()
 
 
-    def classify(self, frame, previous_output=None):
+    def classify(self, frame):
         # Object detection
         print("Starting Object detection...")
         objects = self.objectDetection_model.detect(frame)
@@ -124,12 +121,6 @@ class LLM:
             }
         ]
 
-        if previous_output:
-            messages.append({
-                "role": "user",
-                "content": f"Previous classification: {previous_output}"
-            })
-
         try:
             prompt = self.tokenizer.apply_chat_template(
                 messages, 
@@ -139,8 +130,6 @@ class LLM:
             )
         except Exception:
             prompt = "\n".join([msg["content"] for msg in messages])
-
-        # print("\nPrompt:\n", prompt)
 
         inputs = self.tokenizer(prompt, return_tensors='pt')
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
@@ -159,10 +148,9 @@ class LLM:
         output = generated_texts[0].strip()
 
         print("\nLLM Output:\n", output)
-
-         # Extract reasoning using startswith/endswith and get the last one
+        
+        # Extract reasoning using startswith/endswith and get the last one
         reasoning = "Not detected"
-
         lines = output.splitlines()
         last_reasoning_idx = -1
         for idx, line in enumerate(lines):
@@ -192,11 +180,6 @@ class LLM:
 def main():
 
     llm = LLM()
-
-    # Use the LLM output as additional input to the LLM (demonstration)
-    # refined_classification = llm.classify(image_description, previous_output=classification)
-    # print(f"Refined Classification Result: {refined_classification}")
-
     # Capture image from camera
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -226,13 +209,6 @@ def main():
             print("\nClassification:", classification)
             print("\nReasoning:", reasoning)
 
-
-            # Optionally, show detections on the image
-            # for detection in detections:
-            #     label, prob = detection
-            #     cv2.putText(image, f"{label}: {prob}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
-            # cv2.imshow("classification", image)
-            # cv2.waitKey(0)
             break
 
     cap.release()
