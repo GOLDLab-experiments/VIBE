@@ -81,11 +81,11 @@ class EmotionRecognizer:
 
         self.core = Core()
         self.pipeline = EmotionPipeline(self.core, em_path)
-        cam_source = os.environ.get("CAMERA_SOURCE", "0")
-        if cam_source.isdigit():
-            self.cap = cv2.VideoCapture(int(cam_source))
-        else:
-            raise ValueError(f"Invalid camera source: {cam_source}")
+        # cam_source = os.environ.get("CAMERA_SOURCE", "0")
+        # if cam_source.isdigit():
+        #     self.cap = cv2.VideoCapture(int(cam_source))
+        # else:
+        #     raise ValueError(f"Invalid camera source: {cam_source}")
         self.emotions_array = ['neutral', 'happy', 'sad', 'surprise', 'anger']
 
 
@@ -152,6 +152,7 @@ class EmotionRecognizer:
         return frame, detections
 
     def run(self):
+        self.cap = cv2.VideoCapture(0)
         while True:
             frame = None
             if self.cap:
