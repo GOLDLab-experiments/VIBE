@@ -29,5 +29,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["EmotionRecognition", "ObjectDetection"]
-py_modules = ["LLM", "skeleton"]
+packages = ["EmotionRecognition", "ObjectDetection", "LLM", "skeleton"]
