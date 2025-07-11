@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "VIBE"
+version = "0.1.0"
+description = "A project for scene analysis using object detection, emotion recognition, and skeleton tracking."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name="Gali" },
+  { name="Arbel" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "huggingface-hub==0.33.2",
+    "mediapipe==0.10.21",
+    "opencv-python==4.11.0.86",
+    "openvino==2024.0.0",
+    "openvino-dev==2024.0.0",
+    "torch==2.7.1",
+    "transformers==4.53.1",
+    "ultralytics==8.3.163",
+    "dotenv"
+]
+
+[tool.setuptools]
+packages = ["EmotionRecognition", "ObjectDetection"]
