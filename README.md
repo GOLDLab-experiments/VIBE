@@ -133,8 +133,8 @@ Reasoning: The scene shows a person in a relaxed posture with neutral expression
 You can also test individual components:
 
 - **Object Detection**: `python -m ObjectDetection.ObjectDetector`
-- **Emotion Recognition**: `python EmotionRecognition/EmotionRecognizer.py`
-- **Skeleton Detection**: `python skeleton/skeleton.py`
+- **Emotion Recognition**: `python -m motionRecognition.EmotionRecognizer`
+- **Skeleton Detection**: `python -m skeleton.skeleton`
 
 ---
 
