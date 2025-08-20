@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from EmotionRecognition.EmotionRecognizer import EmotionRecognizer
 from ObjectDetection.ObjectDetector import ObjectDetector
-from skeleton import SkeletonDetector
+from skeleton.skeleton import SkeletonDetector
 
 print("Loading model...")
 
