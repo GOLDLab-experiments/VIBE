@@ -14,6 +14,6 @@ def _check_models():
     if missing:
         raise RuntimeError(
             f"Required model files not found: {missing}\n"
-            "Please run: python download_models.py"
+            "Please run: python -m LLM.download_models to download the necessary models."
         )
 _check_models()
