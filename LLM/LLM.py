@@ -183,18 +183,59 @@ class LLM:
         _, emotions = self.emotionRecognition_model.detect(frame)
         skeleton_landmarks = self.skeletonDetector.detect(frame)
 
-        print("Objects detected:", objects)
-        print("Emotions detected:", emotions)
-        print("Skeleton landmarks detected:", skeleton_landmarks)
+        has_helmet = False
+        # helmet -> Authorized
+        for obj, prob in objects:
+            if obj.lower() == "helmet" and prob > 0.5:
+                has_helmet = True
+            
+        # Weapon + angry -> Malicious
+        weapons = {"knife", "scissors", "gun", "pistol"}
+        has_weapon = any(label.lower() in weapons for (label, _p) in objects)
 
-        return "Benign", "No threats or stuff detected, defaulting to Benign."
+        # detect raised elbows (elbow above respective shoulder) treat as weapon equivalent
+        raised_arm = False
+        if skeleton_landmarks:
+            # build quick lookup: name -> (prob, (x,y) or None)
+            lm = {}
+            for entry in skeleton_landmarks:
+                # entry could be (name, prob) or (name, prob, (x,y))
+                if len(entry) >= 3 and isinstance(entry[2], tuple):
+                    name, p, coord = entry[0], entry[1], entry[2]
+                else:
+                    name, p, coord = entry[0], entry[1], None
+                lm[name.lower()] = (p, coord)
+            # check left
+            if 'left_elbow' in lm and 'left_shoulder' in lm:
+                le_p, le_coord = lm['left_elbow']
+                ls_p, ls_coord = lm['left_shoulder']
+                if le_coord and ls_coord and le_coord[1] < ls_coord[1]:  # smaller y => higher in image
+                    raised_arm = True
+            # check right
+            if 'right_elbow' in lm and 'right_shoulder' in lm:
+                re_p, re_coord = lm['right_elbow']
+                rs_p, rs_coord = lm['right_shoulder']
+                if re_coord and rs_coord and re_coord[1] < rs_coord[1]:
+                    raised_arm = True
+
+            has_weapon = has_weapon or raised_arm
         
-        # if "helmet" in objects:
-        #     return "Authorized", "Detected helmet indicating Authorized personnel."
-        # if ("knife" in objects or "scissors" in objects or "gun" in objects or skeleton_landmarks) and "angry" in emotions:
-        #     return "Malicious", "Detected potentially dangerous objects indicating Malicious intent."
-        # else:
-        #     return "Benign", "No threats or stuff detected, defaulting to Benign."
+        angry = False
+        for emo, p in emotions:
+            if emo.lower() == "angry" and p > 0.4:
+                angry = True
+        
+        match (has_helmet, has_weapon, angry):
+            case (True, _, _):
+                return "Authorized", "Detected helmet with high probability."
+            case (_, True, True):
+                return "Malicious", "Detected weapon and angry emotion."
+            case (_, True, False):
+                return "Malicious", "Detected weapon."
+            case (_, False, True):
+                return "Malicious", "Detected angry emotion."
+            case _:
+                return "Benign", "No threats detected."
 
 def main():
 
