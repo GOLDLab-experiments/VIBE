@@ -176,6 +176,25 @@ class LLM:
                 break
 
         return predicted_class, reasoning
+    
+    def fast_classify(self, frame):
+        # extract the features, and use predefined rules to classify
+        objects = self.objectDetection_model.detect(frame)
+        _, emotions = self.emotionRecognition_model.detect(frame)
+        skeleton_landmarks = self.skeletonDetector.detect(frame)
+
+        print("Objects detected:", objects)
+        print("Emotions detected:", emotions)
+        print("Skeleton landmarks detected:", skeleton_landmarks)
+
+        return "Benign", "No threats or stuff detected, defaulting to Benign."
+        
+        # if "helmet" in objects:
+        #     return "Authorized", "Detected helmet indicating Authorized personnel."
+        # if ("knife" in objects or "scissors" in objects or "gun" in objects or skeleton_landmarks) and "angry" in emotions:
+        #     return "Malicious", "Detected potentially dangerous objects indicating Malicious intent."
+        # else:
+        #     return "Benign", "No threats or stuff detected, defaulting to Benign."
 
 def main():
 
