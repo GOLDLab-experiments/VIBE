@@ -57,8 +57,7 @@ class ObjectDetector:
         return model_name
 
     def detect(self, image):  # numpy array / cv2 frame accepted
-        print("Running inference...")
-        res = self.model.predict(image, conf=0.2, save=False, show=False, verbose=False)[0]
+        res = self.model.predict(image, conf=0.2, save=True, show=False, verbose=False)[0]
         boxes = getattr(res, "boxes", None)
         if boxes is None or boxes.data is None or len(boxes) == 0:
             return []

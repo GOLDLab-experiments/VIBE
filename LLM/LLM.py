@@ -22,7 +22,7 @@ class LLM:
         print(f"LLM ({model_id}) loaded and moved to {device}.")
         # if self.tokenizer.pad_token is None:
         #    self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.objectDetection_model = ObjectDetector()
+        self.objectDetection_model = ObjectDetector(model_key="hf_helmet") # change object model here if needed
         self.emotionRecognition_model = EmotionRecognizer()
         self.skeletonDetector = SkeletonDetector()
 
@@ -180,13 +180,14 @@ class LLM:
     def fast_classify(self, frame):
         # extract the features, and use predefined rules to classify
         objects = self.objectDetection_model.detect(frame)
+        print("Objects detected:", objects)
         _, emotions = self.emotionRecognition_model.detect(frame)
         skeleton_landmarks = self.skeletonDetector.detect(frame)
 
         has_helmet = False
         # helmet -> Authorized
         for obj, prob in objects:
-            if obj.lower() == "helmet" and prob > 0.5:
+            if (obj.lower() == "helmet" and prob > 0.2) or (obj.lower() == "with helmet" and prob > 0.4):
                 has_helmet = True
             
         # Weapon + angry -> Malicious
