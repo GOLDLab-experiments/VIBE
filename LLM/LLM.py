@@ -223,7 +223,7 @@ class LLM:
         
         angry = False
         for emo, p in emotions:
-            if emo.lower() == "angry" and p > 0.4:
+            if emo.lower() == "anger" and p > 0.4:
                 angry = True
         
         match (has_helmet, has_weapon, angry):
