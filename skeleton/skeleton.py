@@ -54,7 +54,7 @@ class SkeletonDetector:
                 visibility = landmark.visibility
                 keypoint = self.keypoints[idx]
                 if visibility > 0.5:  # Only consider keypoints with visibility above a threshold
-                    detections.append((keypoint, round(visibility, 3)))
+                    detections.append((keypoint, round(visibility, 3), (x, y)))
         return detections
 
     def draw(self, image: np.ndarray):

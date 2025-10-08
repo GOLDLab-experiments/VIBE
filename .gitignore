@@ -3,3 +3,4 @@ hf_token.py
 intel/
 EmotionRecognition/intel/
 __pycache__/
+*.egg-info
