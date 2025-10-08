@@ -174,3 +174,4 @@ You can also test individual components:
 
 - [Gali Tal](https://github.com/galital5)
 - [Arbel Tepper](https://github.com/ArbelTepper)
+- [Omri Perry](https://github.com/OmriPer)
